@@ -18,4 +18,6 @@ var firebaseConfig = {
   // Para utilizar o firestore nas páginas (Cloud Firestore - Banco de dados não relacional)
   export const db = app.firestore();
 
+  export const storage = firebase.storage;
+
   export default firebaseConfig;

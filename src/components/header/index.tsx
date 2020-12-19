@@ -62,6 +62,7 @@ const Header: React.FC<HeaderProps> = (props) => {
           <li><Link className="link" to="/home">Home</Link></li>
           <li><Link className="link" to="/filmesAdm">Filmes</Link></li>
           <li><Link className="link" to="/generos">Generos</Link></li>
+          <li><Link className="link" to="/arquivos">Arquivos</Link></li>
 
           <li><Link className="link" to="" onClick={event => {
             event.preventDefault();

@@ -5,6 +5,7 @@ import Home from './pages/home/index'
 import Login from './pages/login/index'
 import Generos from './pages/generos/generos';
 import FilmesAdm from './pages/filmesAdm/index';
+import Arquivos from './pages/arquivos/index';
 
 function Routes() {
   const getToken = () => {
@@ -41,6 +42,7 @@ function Routes() {
         <NotAuthenticated path="/" exact Component={Login} />
         <NotAuthenticated path="/cadastro" Component={Cadastro} />
         <RotaPrivadaComum path="/home" Component={Home} />
+        <RotaPrivadaComum path="/arquivos" Component={Arquivos} />
         <RotaPrivadaComum path="/filmesAdm" Component={FilmesAdm} />
         <RotaPrivadaComum path="/generos" Component={Generos} />
       </Switch>
