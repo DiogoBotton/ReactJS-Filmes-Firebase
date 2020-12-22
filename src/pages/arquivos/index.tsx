@@ -8,19 +8,24 @@ import Trash from '../../assets/images/trash.png'
 import { Form, Toast } from 'react-bootstrap';
 import './style.css'
 
+// Formatter
+import { niceBytes } from '../../utils/formatter';
+
+// Tabelas
+import { DataGrid, ColDef } from '@material-ui/data-grid';
+
 import { CircularProgressbar } from 'react-circular-progressbar';
-import { MdCheckCircle, MdError, MdLink } from 'react-icons/md';
+import { MdCheckCircle, MdError } from 'react-icons/md';
 
 // Firestore (database do firebase)
 import { db, storage } from '../../utils/firebaseConfig';
 
 function Arquivos() {
     const [arquivo, setArquivo] = useState<any>(null);
-    const [idArquivo, setIdArquivo] = useState(0);
+
     const [arquivos, setArquivos] = useState<any>([]);
 
     const [fileInvalid, setFileValid] = useState(false);
-
 
     // Monitoramento de upload
     const [show, setShow] = useState(true);
@@ -35,11 +40,35 @@ function Arquivos() {
     const [successUpload, setSuccessUpload] = useState(false);
     const [errorUpload, setErrorUpload] = useState(false);
 
+    useEffect(() => {
+        getArquivos();
+    }, [])
+
     const limparCampos = () => {
         setErrorUpload(false);
         setSuccessUpload(false);
         setUploadStatus('');
         setProgressBar(0);
+    }
+
+    const getArquivos = async () => {
+        // Recupera todos os itens e atualiza a lista em tempo real caso algum documento for alterado
+        db.collection('Arquivos').onSnapshot(
+            resp => {
+                let arqs = resp.docs.map((arq: any) => {
+                    return {
+                        id: arq.id,
+                        path: arq.data().path,
+                        nome: arq.data().nome,
+                        downloadUrl: arq.data().downloadUrl,
+                        tamanho: niceBytes(arq.data().tamanho),
+                        contentType: arq.data().contentType,
+                        timeCreated: arq.data().timeCreated,
+                        timeUploaded: arq.data().timeUploaded,
+                    }
+                })
+                setArquivos(arqs);
+            })
     }
 
     // download 
@@ -80,20 +109,16 @@ function Arquivos() {
         uploadTask.on(storage.TaskEvent.STATE_CHANGED, snapshot => {
             // Percentual de envio utilizando o número de bytes transferido e total
             setProgressBar((snapshot.bytesTransferred / snapshot.totalBytes) * 100);
-            console.log(progressBar + '%')
 
             // Monitora o status do envio
             switch (snapshot.state) {
                 case storage.TaskState.CANCELED:
-                    console.log('Upload cancelado.')
                     setUploadStatus('Upload Cancelado.')
                     break;
                 case storage.TaskState.RUNNING:
-                    console.log('Upload em andamento.')
                     setUploadStatus('Upload em andamento.')
                     break;
                 case storage.TaskState.PAUSED:
-                    console.log('Upload pausado.')
                     setUploadStatus('Upload pausado.')
                     break;
             }
@@ -102,27 +127,45 @@ function Arquivos() {
             setErrorUpload(true);
             switch (err.code) {
                 case 'storage/unauthorized':
-                    console.log('Upload não autorizado.')
                     setUploadStatus('Upload não autorizado.')
                     break;
                 case 'storage/canceled':
                     console.log('Upload cancelado.')
                     break;
                 case 'storage/unknown':
-                    console.log('Erro desconhecido no upload do arquivo.')
                     setUploadStatus('Erro desconhecido no upload do arquivo.')
                     break;
             }
             // Caso ocorra tudo certo, função para resgatar a URL de download
         }, function () {
-            uploadTask.snapshot.ref.getDownloadURL()
-                .then(downloadURL => {
-                    console.log('Download disponível em: ' + downloadURL);
-                    setUploadStatus('Enviado')
-                    setSuccessUpload(true);
-                })
-                .catch(err => {
-                    console.log('Houve um erro ao resgatar a URL de download.')
+            uploadTask.snapshot.ref.getMetadata()
+                .then(metaData => {
+                    // Cadastra na coleção o arquivo que foi enviado
+                    db.collection('Arquivos').doc(metaData.md5Hash).set({
+                        path: metaData.fullPath,
+                        nome: metaData.name,
+                        tamanho: metaData.size,
+                        contentType: metaData.contentType,
+                        timeCreated: metaData.timeCreated,
+                        timeUploaded: metaData.updated,
+                    })
+                        .catch(err => console.log('Houve um erro na criação do registro do arquivo no FireStore.'))
+
+                    // Recupera a url de download
+                    uploadTask.snapshot.ref.getDownloadURL()
+                        .then(downloadURL => {
+                            // Atualiza o documento para adicionar a url de download
+                            db.collection('Arquivos').doc(metaData.md5Hash).update({
+                                downloadUrl: downloadURL,
+                            })
+                                .catch(err => console.log('Houve um erro na atualização do documento no fireStore para adicionar URL de download.'))
+                            console.log('Download disponível em: ' + downloadURL);
+                            setUploadStatus('Enviado')
+                            setSuccessUpload(true);
+                        })
+                        .catch(err => {
+                            console.log('Houve um erro ao resgatar a URL de download.')
+                        })
                 })
         })
     }
@@ -162,27 +205,12 @@ function Arquivos() {
         }
     }
 
-    // Listagem dos arquivos
-    const arquivosRender = () => {
-        return (
-            <tbody>
-                {
-                    // Listando ITENS com TYPESCRIPT (arquivo recebe QUALQUER item, necessário para reconhecer as props)
-                    arquivos.map((arquivo: any) => {
-                        return (
-                            // Linha com o ID do arquivo
-                            <tr key={arquivo.id}>
-                                <td>{arquivo.nome}</td>
-                                <td className="acts">
-                                    <img src={Refresh} alt="Refresh" className="icon" onClick={() => download(arquivo.id)} />
-                                    <img src={Trash} alt="Trash" className="icon" onClick={() => trash(arquivo.id)} /></td>
-                            </tr>
-                        );
-                    })
-                }
-            </tbody>
-        );
-    }
+    const columns: ColDef[] = [
+        { field: 'id', headerName: 'ID', width: 150 },
+        { field: 'nome', headerName: 'Nome', width: 200 },
+        { field: 'contentType', headerName: 'Tipo', width: 200 },
+        { field: 'tamanho', headerName: 'Tamanho', width: 200 }
+    ];
 
     return (
         <div className="arqs">
@@ -193,37 +221,32 @@ function Arquivos() {
                 <img src={Files} alt="Arquivos" />
             </div>
 
-            <h3>Lista de Arquivos</h3>
-            <div className="table-responsive">
-                <table className="table table-striped table-bordered table-hover">
-                    <thead className="thead-cor">
-                        <tr>
-                            <th scope="col">Arquivo</th>
-                            <th scope="col">Ações</th>
-                        </tr>
-                    </thead>
-                    {arquivosRender()}
-                </table>
-
-                <Form className="form" onSubmit={event => {
-                    event.preventDefault()
-                    upload();
-                }}>
-                    <div className="mb-3">
-                        <Form.File id="formcheck-api-regular">
-                            <Form.File.Label>Arquivo</Form.File.Label>
-                            <Form.File.Input isInvalid={fileInvalid} onChange={(e: any) => {
-                                setArquivo(e.target.files[0]);
-                                limparCampos();
-                            }} />
-                            <Form.Control.Feedback type="invalid" >Arquivo inválido, apenas arquivos de imagem ou compactados (.rar, .zip)</Form.Control.Feedback>
-                        </Form.File>
-                    </div>
-                    <div className="btn">
-                        <Button name="Upload Arquivo" type="submit" />
-                    </div>
-                </Form>
+            <div style={{ marginTop: '3em', marginBottom: '3em' }}>
+                <div className="table-container" style={{ height: 400, margin: '0 auto' }}>
+                    <DataGrid pagination rows={arquivos} columns={columns} pageSize={5} rowsPerPageOptions={[5, 10, 25, 50]}
+                    />
+                </div>
             </div>
+
+            <Form className="form" onSubmit={event => {
+                event.preventDefault()
+                upload();
+            }}>
+                <div className="mb-3">
+                    <Form.File id="formcheck-api-regular">
+                        <Form.File.Label>Arquivo</Form.File.Label>
+                        <Form.File.Input isInvalid={fileInvalid} onChange={(e: any) => {
+                            setArquivo(e.target.files[0]);
+                            limparCampos();
+                        }} />
+                        <Form.Control.Feedback type="invalid" >Arquivo inválido, apenas arquivos de imagem ou compactados (.rar, .zip)</Form.Control.Feedback>
+                    </Form.File>
+                </div>
+                <div className="btn">
+                    <Button name="Upload Arquivo" type="submit" />
+                </div>
+            </Form>
+
             <Toast className="monitoringUp" show={show}>
                 <Toast.Header>
                     <strong className="mr-auto">Upload's</strong>

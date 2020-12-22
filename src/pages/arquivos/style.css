@@ -26,6 +26,10 @@ form {
     justify-content: center;
 }
 
+.table-container {
+    width: 90vh;
+}
+
 .arqs > .monitoringUp {
     position: fixed;
     right: 1em;
