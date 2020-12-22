@@ -11,6 +11,10 @@
     cursor: pointer;
 }
 
+.actions:hover {
+    cursor: pointer;
+}
+
 .thead-cor{
     background: #F6511D;
     color: #ffffff;

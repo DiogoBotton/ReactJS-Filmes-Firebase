@@ -3,8 +3,6 @@ import Header from '../../components/header/index';
 import Footer from '../../components/footer/index';
 import Button from '../../components/button/index';
 import Files from '../../assets/images/files.png'
-import Refresh from '../../assets/images/refresh.png'
-import Trash from '../../assets/images/trash.png'
 import { Form, Toast } from 'react-bootstrap';
 import './style.css'
 
@@ -12,7 +10,11 @@ import './style.css'
 import { niceBytes } from '../../utils/formatter';
 
 // Tabelas
-import { DataGrid, ColDef } from '@material-ui/data-grid';
+import { DataGrid, ColDef, ValueFormatterParams } from '@material-ui/data-grid';
+
+// Ícones material-ui
+import { Delete, CloudDownload, Edit, InsertDriveFile } from '@material-ui/icons';
+import { IconButton, Tooltip, Avatar } from '@material-ui/core';
 
 import { CircularProgressbar } from 'react-circular-progressbar';
 import { MdCheckCircle, MdError } from 'react-icons/md';
@@ -24,6 +26,8 @@ function Arquivos() {
     const [arquivo, setArquivo] = useState<any>(null);
 
     const [arquivos, setArquivos] = useState<any>([]);
+
+    const [cellSelect, setCellSelect] = useState({});
 
     const [fileInvalid, setFileValid] = useState(false);
 
@@ -206,10 +210,53 @@ function Arquivos() {
     }
 
     const columns: ColDef[] = [
-        { field: 'id', headerName: 'ID', width: 150 },
+        {
+            field: 'icon',
+            headerName: 'Ícone',
+            width: 100,
+            // Renderizando componentes dentro de cada celula de uma coluna específica
+            renderCell: (params: ValueFormatterParams) => (
+                params.row.contentType.includes('image') ?
+                    <div>
+                        {
+                            <Avatar alt={params.row.nome} src={params.row.downloadUrl} style={{ width: '2.5em', height: '2.5em'}} />
+                        }
+                    </div>
+                    :
+                    <div>
+                        {
+                            <InsertDriveFile fontSize="large" />
+                        }
+                    </div>
+            )
+        },
         { field: 'nome', headerName: 'Nome', width: 200 },
         { field: 'contentType', headerName: 'Tipo', width: 200 },
-        { field: 'tamanho', headerName: 'Tamanho', width: 200 }
+        { field: 'tamanho', headerName: 'Tamanho', width: 100 },
+        {
+            field: 'actions',
+            headerName: 'Ações',
+            width: 170,
+            renderCell: (params: ValueFormatterParams) => (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Tooltip title="Download" onClick={() => { console.log(cellSelect) }}>
+                        <IconButton>
+                            <CloudDownload />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete" onClick={() => { console.log(cellSelect) }}>
+                        <IconButton>
+                            <Delete />
+                        </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Editar" onClick={() => { console.log(cellSelect) }}>
+                        <IconButton>
+                            <Edit />
+                        </IconButton>
+                    </Tooltip>
+                </div>
+            )
+        }
     ];
 
     return (
@@ -224,6 +271,9 @@ function Arquivos() {
             <div style={{ marginTop: '3em', marginBottom: '3em' }}>
                 <div className="table-container" style={{ height: 400, margin: '0 auto' }}>
                     <DataGrid pagination rows={arquivos} columns={columns} pageSize={5} rowsPerPageOptions={[5, 10, 25, 50]}
+                        onCellClick={cell => {
+                            setCellSelect(cell.row);
+                        }}
                     />
                 </div>
             </div>
